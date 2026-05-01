@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="vi" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Lý Dịch Vụ Theo Giờ</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+  * { font-family: 'Be Vietnam Pro', sans-serif; }
+  @keyframes pulse-glow { 0%,100%{ box-shadow: 0 0 8px rgba(34,197,94,0.3); } 50%{ box-shadow: 0 0 20px rgba(34,197,94,0.6); } }
+  .running-glow { animation: pulse-glow 2s infinite; }
+  @keyframes fade-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .fade-in { animation: fade-in 0.3s ease; }
+  .ticker { font-variant-numeric: tabular-nums; }
+</style>
+  <script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: '#0f172a',
+        surface: '#1e293b',
+        accent: '#22c55e',
+        accent2: '#f59e0b',
+        txt: '#f1f5f9'
+      }
+    }
+  }
+}
+</script>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full bg-bg text-txt overflow-auto">
+  <div id="app" class="h-full w-full flex flex-col"><!-- Header -->
+   <header class="px-4 py-3 bg-surface border-b border-white/10 flex items-center justify-between flex-shrink-0">
+    <div>
+     <h1 id="appTitle" class="text-xl font-800 text-accent">⏱ Quản Lý Dịch Vụ</h1>
+     <p id="rateLabel" class="text-xs text-txt/50 mt-0.5">40.000đ / giờ</p>
+    </div>
+    <div class="flex gap-2"><button onclick="showTab('main')" id="tabMain" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-accent/20 text-accent">Bảng chính</button> <button onclick="showTab('history')" id="tabHistory" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Lịch sử</button> <button onclick="showTab('stats')" id="tabStats" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Thống kê</button>
+    </div>
+   </header><!-- Main Tab -->
+   <div id="viewMain" class="flex-1 overflow-auto p-4">
+    <div class="flex items-center justify-between mb-4">
+     <h2 class="font-700 text-lg">Danh sách dịch vụ</h2><button onclick="openAddModal()" class="flex items-center gap-1.5 bg-accent text-bg px-3 py-1.5 rounded-lg text-sm font-600 hover:bg-accent/80 transition"> <i data-lucide="plus" style="width:16px;height:16px"></i> Thêm mục </button>
+    </div>
+    <div id="serviceGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+   </div><!-- History Tab -->
+   <div id="viewHistory" class="flex-1 overflow-auto p-4 hidden">
+    <h2 class="font-700 text-lg mb-4">Lịch sử sử dụng</h2>
+    <div id="historyList" class="space-y-2"></div>
+    <p id="historyEmpty" class="text-txt/40 text-center py-8 hidden">Chưa có lịch sử</p>
+   </div><!-- Stats Tab -->
+   <div id="viewStats" class="flex-1 overflow-auto p-4 hidden">
+    <h2 class="font-700 text-lg mb-4">Thống kê doanh thu</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+     <div class="bg-surface rounded-xl p-4 border border-white/5">
+      <p class="text-xs text-txt/50 mb-1">Hôm nay</p>
+      <p id="statToday" class="text-2xl font-800 text-accent ticker">0đ</p>
+     </div>
+     <div class="bg-surface rounded-xl p-4 border border-white/5">
+      <p class="text-xs text-txt/50 mb-1">Tháng này</p>
+      <p id="statMonth" class="text-2xl font-800 text-accent2 ticker">0đ</p>
+     </div>
+     <div class="bg-surface rounded-xl p-4 border border-white/5">
+      <p class="text-xs text-txt/50 mb-1">Tổng lượt</p>
+      <p id="statCount" class="text-2xl font-800 text-txt ticker">0</p>
+     </div>
+    </div>
+   </div><!-- Modal: Add/Edit Service -->
+   <div id="modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+    <div class="bg-surface rounded-2xl p-5 w-80 fade-in border border-white/10">
+     <h3 id="modalTitle" class="font-700 text-lg mb-3">Thêm dịch vụ</h3><input id="modalInput" type="text" placeholder="Tên dịch vụ..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-txt placeholder-txt/30 outline-none focus:border-accent mb-3">
+     <div class="flex gap-2"><button onclick="saveModal()" class="flex-1 bg-accent text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent/80 transition">Lưu</button> <button onclick="closeModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
+     </div>
+    </div>
+   </div><!-- Modal: End Session -->
+   <div id="endModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+    <div class="bg-surface rounded-2xl p-5 w-80 fade-in border border-white/10">
+     <h3 class="font-700 text-lg mb-1 text-accent2">Kết thúc dịch vụ</h3>
+     <p id="endName" class="text-sm text-txt/60 mb-4"></p>
+     <div class="bg-white/5 rounded-xl p-4 mb-4 space-y-2">
+      <div class="flex justify-between text-sm">
+       <span class="text-txt/50">Bắt đầu</span><span id="endStart" class="ticker"></span>
+      </div>
+      <div class="flex justify-between text-sm">
+       <span class="text-txt/50">Kết thúc</span><span id="endEnd" class="ticker"></span>
+      </div>
+      <div class="flex justify-between text-sm">
+       <span class="text-txt/50">Thời gian</span><span id="endDuration" class="font-600 ticker"></span>
+      </div>
+      <div class="border-t border-white/10 pt-2 flex justify-between font-700 text-lg">
+       <span>Tổng tiền</span><span id="endCost" class="text-accent ticker"></span>
+      </div>
+     </div>
+     <div class="flex gap-2"><button onclick="confirmEnd()" id="endConfirmBtn" class="flex-1 bg-accent2 text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent2/80 transition">Xác nhận</button> <button onclick="closeEndModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
+     </div>
+    </div>
+   </div><!-- Inline confirm delete -->
+   <div id="deleteModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+    <div class="bg-surface rounded-2xl p-5 w-72 fade-in border border-white/10">
+     <p class="text-sm mb-4">Xóa mục <strong id="deleteName"></strong>?</p>
+     <div class="flex gap-2"><button onclick="confirmDelete()" class="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-600">Xóa</button> <button onclick="closeDeleteModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600">Hủy</button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+// ---- STATE ----
+const RATE = 40000; // per hour
+const DEFAULT_SERVICES = ['Xe4','Xe5','Xe6','Xe7','Xe8','Ô tô vàng','Ô tô con'];
+let services = JSON.parse(localStorage.getItem('services') || 'null') || [...DEFAULT_SERVICES];
+// active sessions: { [serviceName]: startTimeISO }
+let sessions = JSON.parse(localStorage.getItem('sessions') || '{}');
+let historyRecords = []; // from Data SDK
+let editingIndex = -1;
+let deleteIndex = -1;
+let endingService = null;
+let timerInterval = null;
+
+// ---- ELEMENT SDK ----
+const defaultConfig = {
+  app_title: 'Quản Lý Dịch Vụ',
+  rate_label: '40.000đ / giờ',
+  background_color: '#0f172a',
+  surface_color: '#1e293b',
+  text_color: '#f1f5f9',
+  accent_color: '#22c55e',
+  accent2_color: '#f59e0b',
+  font_family: 'Be Vietnam Pro',
+  font_size: 14
+};
+
+function applyConfig(config) {
+  const c = { ...defaultConfig, ...config };
+  document.getElementById('appTitle').textContent = '⏱ ' + c.app_title;
+  document.getElementById('rateLabel').textContent = c.rate_label;
+  document.body.style.backgroundColor = c.background_color;
+  document.body.style.color = c.text_color;
+  document.querySelectorAll('.bg-surface, [class*="bg-surface"]').forEach(el => {
+    el.style.backgroundColor = c.surface_color;
+  });
+  document.body.style.fontFamily = `${c.font_family}, Be Vietnam Pro, sans-serif`;
+  const base = c.font_size || 14;
+  document.body.style.fontSize = base + 'px';
+  document.getElementById('appTitle').style.fontSize = (base * 1.5) + 'px';
+}
+
+window.elementSdk.init({
+  defaultConfig,
+  onConfigChange: async (config) => applyConfig(config),
+  mapToCapabilities: (config) => ({
+    recolorables: [
+      { get: () => config.background_color || defaultConfig.background_color, set: v => { config.background_color = v; window.elementSdk.setConfig({ background_color: v }); }},
+      { get: () => config.surface_color || defaultConfig.surface_color, set: v => { config.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }},
+      { get: () => config.text_color || defaultConfig.text_color, set: v => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); }},
+      { get: () => config.accent_color || defaultConfig.accent_color, set: v => { config.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }},
+      { get: () => config.accent2_color || defaultConfig.accent2_color, set: v => { config.accent2_color = v; window.elementSdk.setConfig({ accent2_color: v }); }}
+    ],
+    borderables: [],
+    fontEditable: { get: () => config.font_family || defaultConfig.font_family, set: v => { config.font_family = v; window.elementSdk.setConfig({ font_family: v }); }},
+    fontSizeable: { get: () => config.font_size || defaultConfig.font_size, set: v => { config.font_size = v; window.elementSdk.setConfig({ font_size: v }); }}
+  }),
+  mapToEditPanelValues: (config) => new Map([
+    ['app_title', config.app_title || defaultConfig.app_title],
+    ['rate_label', config.rate_label || defaultConfig.rate_label]
+  ])
+});
+
+// ---- DATA SDK ----
+const dataHandler = {
+  onDataChanged(data) {
+    historyRecords = data.filter(d => d.status === 'completed');
+    renderHistory();
+    renderStats();
+  }
+};
+(async () => {
+  const r = await window.dataSdk.init(dataHandler);
+  if (!r.isOk) console.error('Data SDK init failed');
+})();
+
+// ---- HELPERS ----
+function formatMoney(n) {
+  return Math.round(n).toLocaleString('vi-VN') + 'đ';
+}
+function formatTime(date) {
+  return date.getHours().toString().padStart(2,'0') + ':' + date.getMinutes().toString().padStart(2,'0');
+}
+function calcCost(minutes) {
+  return (minutes / 60) * RATE;
+}
+function saveLocal() {
+  localStorage.setItem('services', JSON.stringify(services));
+  localStorage.setItem('sessions', JSON.stringify(sessions));
+}
+
+// ---- TABS ----
+function showTab(tab) {
+  ['Main','History','Stats'].forEach(t => {
+    document.getElementById('view'+t).classList.toggle('hidden', t.toLowerCase() !== tab);
+    document.getElementById('tab'+t).className = t.toLowerCase() === tab
+      ? 'px-3 py-1.5 rounded-lg text-sm font-600 bg-accent/20 text-accent'
+      : 'px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60';
+  });
+}
+
+// ---- RENDER GRID ----
+function renderGrid() {
+  const grid = document.getElementById('serviceGrid');
+  const existingCards = new Map([...grid.children].map(el => [el.dataset.idx, el]));
+  const needed = new Set();
+
+  services.forEach((name, i) => {
+    const key = String(i);
+    needed.add(key);
+    const isRunning = !!sessions[name];
+    let card = existingCards.get(key);
+
+    if (!card) {
+      card = document.createElement('div');
+      card.dataset.idx = key;
+      card.className = 'relative rounded-xl p-4 border cursor-pointer transition-all select-none';
+      card.innerHTML = `
+        <div class="svc-name font-700 text-base mb-1 truncate"></div>
+        <div class="svc-status text-xs mb-2"></div>
+        <div class="svc-time ticker text-2xl font-800 mb-1">00:00</div>
+        <div class="svc-cost ticker text-sm font-600">0đ</div>
+        <div class="absolute top-2 right-2 flex gap-1">
+          <button class="btn-edit p-1 rounded hover:bg-white/10" title="Sửa"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+          <button class="btn-del p-1 rounded hover:bg-white/10" title="Xóa"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+        </div>
+        <button class="btn-action w-full mt-3 py-1.5 rounded-lg text-sm font-600 transition"></button>
+      `;
+      card.querySelector('.btn-edit').onclick = (e) => { e.stopPropagation(); openEditModal(i); };
+      card.querySelector('.btn-del').onclick = (e) => { e.stopPropagation(); openDeleteModal(i); };
+      card.querySelector('.btn-action').onclick = (e) => { e.stopPropagation(); toggleService(name); };
+      grid.appendChild(card);
+    }
+
+    card.querySelector('.svc-name').textContent = name;
+    if (isRunning) {
+      card.className = 'relative rounded-xl p-4 border border-accent/40 bg-accent/10 cursor-pointer transition-all select-none running-glow';
+      card.querySelector('.svc-status').innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-accent mr-1 animate-pulse"></span>Đang chạy';
+      card.querySelector('.btn-action').textContent = 'Kết thúc';
+      card.querySelector('.btn-action').className = 'btn-action w-full mt-3 py-1.5 rounded-lg text-sm font-600 transition bg-accent2 text-bg hover:bg-accent2/80';
+    } else {
+      card.className = 'relative rounded-xl p-4 border border-white/10 bg-surface cursor-pointer transition-all select-none hover:border-white/20';
+      card.querySelector('.svc-status').innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-white/20 mr-1"></span>Trống';
+      card.querySelector('.svc-time').textContent = '00:00';
+      card.querySelector('.svc-cost').textContent = '0đ';
+      card.querySelector('.btn-action').textContent = 'Bắt đầu';
+      card.querySelector('.btn-action').className = 'btn-action w-full mt-3 py-1.5 rounded-lg text-sm font-600 transition bg-accent text-bg hover:bg-accent/80';
+    }
+  });
+
+  // Remove old
+  existingCards.forEach((el, key) => { if (!needed.has(key)) el.remove(); });
+  lucide.createIcons();
+}
+
+// ---- TIMER ----
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(updateRunning, 1000);
+}
+function stopTimerIfNeeded() {
+  if (!Object.keys(sessions).length && timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+function updateRunning() {
+  const now = Date.now();
+  const grid = document.getElementById('serviceGrid');
+  services.forEach((name, i) => {
+    if (!sessions[name]) return;
+    const card = grid.querySelector(`[data-idx="${i}"]`);
+    if (!card) return;
+    const elapsed = (now - new Date(sessions[name]).getTime()) / 60000;
+    const mins = Math.floor(elapsed);
+    const secs = Math.floor((elapsed - mins) * 60);
+    card.querySelector('.svc-time').textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+    card.querySelector('.svc-cost').textContent = formatMoney(calcCost(elapsed));
+  });
+}
+
+// ---- SERVICE ACTIONS ----
+function toggleService(name) {
+  if (sessions[name]) {
+    openEndModal(name);
+  } else {
+    sessions[name] = new Date().toISOString();
+    saveLocal();
+    renderGrid();
+    startTimer();
+  }
+}
+
+// ---- MODALS ----
+function openAddModal() {
+  editingIndex = -1;
+  document.getElementById('modalTitle').textContent = 'Thêm dịch vụ';
+  document.getElementById('modalInput').value = '';
+  document.getElementById('modal').classList.remove('hidden');
+}
+function openEditModal(i) {
+  editingIndex = i;
+  document.getElementById('modalTitle').textContent = 'Sửa tên dịch vụ';
+  document.getElementById('modalInput').value = services[i];
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function saveModal() {
+  const val = document.getElementById('modalInput').value.trim();
+  if (!val) return;
+  if (editingIndex === -1) {
+    services.push(val);
+  } else {
+    const old = services[editingIndex];
+    if (sessions[old]) { sessions[val] = sessions[old]; delete sessions[old]; }
+    services[editingIndex] = val;
+  }
+  saveLocal();
+  closeModal();
+  renderGrid();
+}
+
+function openDeleteModal(i) {
+  if (sessions[services[i]]) return; // can't delete running
+  deleteIndex = i;
+  document.getElementById('deleteName').textContent = services[i];
+  document.getElementById('deleteModal').classList.remove('hidden');
+}
+function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
+function confirmDelete() {
+  services.splice(deleteIndex, 1);
+  saveLocal();
+  closeDeleteModal();
+  renderGrid();
+}
+
+function openEndModal(name) {
+  endingService = name;
+  const start = new Date(sessions[name]);
+  const end = new Date();
+  const mins = (end - start) / 60000;
+  document.getElementById('endName').textContent = name;
+  document.getElementById('endStart').textContent = formatTime(start);
+  document.getElementById('endEnd').textContent = formatTime(end);
+  document.getElementById('endDuration').textContent = Math.floor(mins) + ' phút';
+  document.getElementById('endCost').textContent = formatMoney(calcCost(mins));
+  document.getElementById('endConfirmBtn').disabled = false;
+  document.getElementById('endModal').classList.remove('hidden');
+}
+function closeEndModal() { document.getElementById('endModal').classList.add('hidden'); endingService = null; }
+
+async function confirmEnd() {
+  if (!endingService) return;
+  const btn = document.getElementById('endConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Đang lưu...';
+
+  const name = endingService;
+  const start = new Date(sessions[name]);
+  const end = new Date();
+  const mins = Math.round((end - start) / 60000);
+  const cost = Math.round(calcCost(mins));
+
+  if (historyRecords.length >= 999) {
+    btn.textContent = 'Đã đầy dữ liệu!';
+    setTimeout(() => { btn.textContent = 'Xác nhận'; btn.disabled = false; }, 2000);
+    return;
+  }
+
+  const result = await window.dataSdk.create({
+    type: 'session',
+    name,
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+    duration_minutes: mins,
+    total_cost: cost,
+    status: 'completed',
+    date: start.toISOString().slice(0, 10)
+  });
+
+  if (result.isOk) {
+    delete sessions[name];
+    saveLocal();
+    stopTimerIfNeeded();
+    closeEndModal();
+    renderGrid();
+  } else {
+    btn.textContent = 'Lỗi! Thử lại';
+    btn.disabled = false;
+  }
+}
+
+// ---- HISTORY ----
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  const sorted = [...historyRecords].sort((a, b) => (b.end_time || '').localeCompare(a.end_time || ''));
+  empty.classList.toggle('hidden', sorted.length > 0);
+
+  const existing = new Map([...list.children].map(el => [el.dataset.id, el]));
+  const needed = new Set();
+
+  sorted.forEach(rec => {
+    const id = rec.__backendId;
+    needed.add(id);
+    let el = existing.get(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.dataset.id = id;
+      el.className = 'bg-surface rounded-xl p-3 border border-white/5 flex items-center justify-between';
+      list.appendChild(el);
+    }
+    const start = rec.start_time ? formatTime(new Date(rec.start_time)) : '--';
+    const end = rec.end_time ? formatTime(new Date(rec.end_time)) : '--';
+    el.innerHTML = `
+      <div>
+        <span class="font-600">${rec.name || ''}</span>
+        <span class="text-xs text-txt/40 ml-2">${rec.date || ''}</span>
+        <span class="text-xs text-txt/40 ml-1">${start} → ${end}</span>
+      </div>
+      <div class="text-right">
+        <div class="font-700 text-accent ticker">${formatMoney(rec.total_cost || 0)}</div>
+        <div class="text-xs text-txt/40">${rec.duration_minutes || 0} phút</div>
+      </div>`;
+  });
+  existing.forEach((el, id) => { if (!needed.has(id)) el.remove(); });
+}
+
+// ---- STATS ----
+function renderStats() {
+  const today = new Date().toISOString().slice(0, 10);
+  const month = today.slice(0, 7);
+  let todayTotal = 0, monthTotal = 0;
+  historyRecords.forEach(r => {
+    const d = r.date || '';
+    if (d === today) todayTotal += (r.total_cost || 0);
+    if (d.startsWith(month)) monthTotal += (r.total_cost || 0);
+  });
+  document.getElementById('statToday').textContent = formatMoney(todayTotal);
+  document.getElementById('statMonth').textContent = formatMoney(monthTotal);
+  document.getElementById('statCount').textContent = historyRecords.length;
+}
+
+// ---- INIT ----
+renderGrid();
+if (Object.keys(sessions).length) startTimer();
+</script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f4f02f06295fd3b',t:'MTc3NzY0MDg3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
