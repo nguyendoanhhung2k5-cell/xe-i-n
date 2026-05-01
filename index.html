@@ -35,13 +35,15 @@ tailwind.config = {
   <style>body { box-sizing: border-box; }</style>
  </head>
  <body class="h-full bg-bg text-txt overflow-auto">
-  <div id="app" class="h-full w-full flex flex-col"><!-- Header -->
+  <div id="app" class="h-full w-full flex flex-col">
+   <!-- Header -->
    <header class="px-4 py-3 bg-surface border-b border-white/10 flex items-center justify-between flex-shrink-0">
     <div>
      <h1 id="appTitle" class="text-xl font-800 text-accent">⏱ Quản Lý Dịch Vụ</h1>
      <p id="rateLabel" class="text-xs text-txt/50 mt-0.5">40.000đ / giờ</p>
     </div>
-    <div class="flex gap-2"><button onclick="showTab('main')" id="tabMain" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-accent/20 text-accent">Bảng chính</button> <button onclick="showTab('history')" id="tabHistory" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Lịch sử</button> <button onclick="showTab('stats')" id="tabStats" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Thống kê</button>
+    <div class="flex gap-2">
+     <button onclick="showTab('main')" id="tabMain" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-accent/20 text-accent">Bảng chính</button> <button onclick="showTab('history')" id="tabHistory" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Lịch sử</button> <button onclick="showTab('stats')" id="tabStats" class="px-3 py-1.5 rounded-lg text-sm font-600 bg-white/5 text-txt/60">Thống kê</button>
     </div>
    </header><!-- Main Tab -->
    <div id="viewMain" class="flex-1 overflow-auto p-4">
@@ -75,7 +77,8 @@ tailwind.config = {
    <div id="modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
     <div class="bg-surface rounded-2xl p-5 w-80 fade-in border border-white/10">
      <h3 id="modalTitle" class="font-700 text-lg mb-3">Thêm dịch vụ</h3><input id="modalInput" type="text" placeholder="Tên dịch vụ..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-txt placeholder-txt/30 outline-none focus:border-accent mb-3">
-     <div class="flex gap-2"><button onclick="saveModal()" class="flex-1 bg-accent text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent/80 transition">Lưu</button> <button onclick="closeModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
+     <div class="flex gap-2">
+      <button onclick="saveModal()" class="flex-1 bg-accent text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent/80 transition">Lưu</button> <button onclick="closeModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
      </div>
     </div>
    </div><!-- Modal: End Session -->
@@ -84,27 +87,25 @@ tailwind.config = {
      <h3 class="font-700 text-lg mb-1 text-accent2">Kết thúc dịch vụ</h3>
      <p id="endName" class="text-sm text-txt/60 mb-4"></p>
      <div class="bg-white/5 rounded-xl p-4 mb-4 space-y-2">
-      <div class="flex justify-between text-sm">
-       <span class="text-txt/50">Bắt đầu</span><span id="endStart" class="ticker"></span>
+      <div class="flex justify-between text-sm"><span class="text-txt/50">Bắt đầu</span><span id="endStart" class="ticker"></span>
       </div>
-      <div class="flex justify-between text-sm">
-       <span class="text-txt/50">Kết thúc</span><span id="endEnd" class="ticker"></span>
+      <div class="flex justify-between text-sm"><span class="text-txt/50">Kết thúc</span><span id="endEnd" class="ticker"></span>
       </div>
-      <div class="flex justify-between text-sm">
-       <span class="text-txt/50">Thời gian</span><span id="endDuration" class="font-600 ticker"></span>
+      <div class="flex justify-between text-sm"><span class="text-txt/50">Thời gian</span><span id="endDuration" class="font-600 ticker"></span>
       </div>
-      <div class="border-t border-white/10 pt-2 flex justify-between font-700 text-lg">
-       <span>Tổng tiền</span><span id="endCost" class="text-accent ticker"></span>
+      <div class="border-t border-white/10 pt-2 flex justify-between font-700 text-lg"><span>Tổng tiền</span><span id="endCost" class="text-accent ticker"></span>
       </div>
      </div>
-     <div class="flex gap-2"><button onclick="confirmEnd()" id="endConfirmBtn" class="flex-1 bg-accent2 text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent2/80 transition">Xác nhận</button> <button onclick="closeEndModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
+     <div class="flex gap-2">
+      <button onclick="confirmEnd()" id="endConfirmBtn" class="flex-1 bg-accent2 text-bg py-2 rounded-lg text-sm font-600 hover:bg-accent2/80 transition">Xác nhận</button> <button onclick="closeEndModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600 hover:bg-white/10 transition">Hủy</button>
      </div>
     </div>
    </div><!-- Inline confirm delete -->
    <div id="deleteModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
     <div class="bg-surface rounded-2xl p-5 w-72 fade-in border border-white/10">
      <p class="text-sm mb-4">Xóa mục <strong id="deleteName"></strong>?</p>
-     <div class="flex gap-2"><button onclick="confirmDelete()" class="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-600">Xóa</button> <button onclick="closeDeleteModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600">Hủy</button>
+     <div class="flex gap-2">
+      <button onclick="confirmDelete()" class="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-600">Xóa</button> <button onclick="closeDeleteModal()" class="flex-1 bg-white/5 py-2 rounded-lg text-sm font-600">Hủy</button>
      </div>
     </div>
    </div>
@@ -377,6 +378,14 @@ async function confirmEnd() {
     return;
   }
 
+  // Cập nhật ngay giao diện và trạng thái nội bộ trước,
+  // rồi lưu dữ liệu lịch sử ở background để phần kết thúc không bị chậm.
+  delete sessions[name];
+  saveLocal();
+  stopTimerIfNeeded();
+  closeEndModal();
+  renderGrid();
+
   const result = await window.dataSdk.create({
     type: 'session',
     name,
@@ -388,15 +397,10 @@ async function confirmEnd() {
     date: start.toISOString().slice(0, 10)
   });
 
-  if (result.isOk) {
-    delete sessions[name];
-    saveLocal();
-    stopTimerIfNeeded();
-    closeEndModal();
-    renderGrid();
-  } else {
+  if (!result.isOk) {
     btn.textContent = 'Lỗi! Thử lại';
     btn.disabled = false;
+    // Nếu cần, có thể cân nhắc thêm cơ chế retry hoặc thông báo lỗi riêng.
   }
 }
 
@@ -455,5 +459,5 @@ function renderStats() {
 renderGrid();
 if (Object.keys(sessions).length) startTimer();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f4f02f06295fd3b',t:'MTc3NzY0MDg3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f4f106bd566fd3a',t:'MTc3NzY0MTQyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
