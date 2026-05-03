@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
   <style>
   * { font-family: 'Be Vietnam Pro', sans-serif; }
@@ -48,7 +47,11 @@ tailwind.config = {
    </header><!-- Main Tab -->
    <div id="viewMain" class="flex-1 overflow-auto p-4">
     <div class="flex items-center justify-between mb-4">
-     <h2 class="font-700 text-lg">Danh sách dịch vụ</h2><button onclick="openAddModal()" class="flex items-center gap-1.5 bg-accent text-bg px-3 py-1.5 rounded-lg text-sm font-600 hover:bg-accent/80 transition"> <i data-lucide="plus" style="width:16px;height:16px"></i> Thêm mục </button>
+     <h2 class="font-700 text-lg"></h2>
+     <div class="flex gap-2">
+      <button onclick="openAddModal()" class="flex items-center gap-1.5 bg-accent text-bg px-3 py-1.5 rounded-lg text-sm font-600 hover:bg-accent/80 transition"> <i data-lucide="plus" style="width:16px;height:16px"></i> Thêm mục </button>
+      <button onclick="resetDefault()" class="flex items-center gap-1.5 bg-white/5 text-txt px-3 py-1.5 rounded-lg text-sm font-600 hover:bg-white/10 transition">MỞ BÀN</button>
+     </div>
     </div>
     <div id="serviceGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
    </div><!-- History Tab -->
@@ -114,14 +117,135 @@ tailwind.config = {
 // ---- STATE ----
 const RATE = 40000; // per hour
 const DEFAULT_SERVICES = ['Xe4','Xe5','Xe6','Xe7','Xe8','Ô tô vàng','Ô tô con'];
-let services = JSON.parse(localStorage.getItem('services') || 'null') || [...DEFAULT_SERVICES];
+const STORAGE_KEYS = {
+  services: 'service_manager_services',
+  sessions: 'service_manager_sessions',
+  history: 'service_manager_history',
+  savedAt: 'service_manager_saved_at'
+};
+let services = [];
 // active sessions: { [serviceName]: startTimeISO }
-let sessions = JSON.parse(localStorage.getItem('sessions') || '{}');
+let sessions = {};
 let historyRecords = []; // from Data SDK
 let editingIndex = -1;
 let deleteIndex = -1;
 let endingService = null;
 let timerInterval = null;
+let localSavedAt = null;
+let applyingRemoteConfig = false;
+
+function safeJSONParse(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function isValidServicesList(list) {
+  return Array.isArray(list) && list.filter(item => typeof item === 'string' && item.trim()).length > 0;
+}
+
+function normalizeServicesList(list) {
+  return Array.isArray(list)
+    ? list.map(item => String(item).trim()).filter(Boolean)
+    : [];
+}
+
+function isValidSessionsObject(obj) {
+  return obj && typeof obj === 'object' && !Array.isArray(obj) &&
+    Object.keys(obj).some(key => typeof obj[key] === 'string' && obj[key].trim());
+}
+
+function loadLocal() {
+  const savedServices = safeJSONParse(localStorage.getItem(STORAGE_KEYS.services), null);
+  const savedSessions = safeJSONParse(localStorage.getItem(STORAGE_KEYS.sessions), null);
+  const savedHistory = safeJSONParse(localStorage.getItem(STORAGE_KEYS.history), []);
+
+  if (savedServices !== null) {
+    services = savedServices;
+  } else {
+    const oldServices = safeJSONParse(localStorage.getItem('services'), null);
+    services = oldServices !== null ? oldServices : [...DEFAULT_SERVICES];
+  }
+
+  if (savedSessions !== null) {
+    sessions = savedSessions;
+  } else {
+    const oldSessions = safeJSONParse(localStorage.getItem('sessions'), null);
+    sessions = oldSessions !== null ? oldSessions : {};
+  }
+
+  historyRecords = Array.isArray(savedHistory) ? savedHistory : [];
+  localSavedAt = localStorage.getItem(STORAGE_KEYS.savedAt) || null;
+}
+
+function saveRemoteConfig() {
+  if (!window.dataSdk?.create) return;
+  window.dataSdk.create({
+    type: 'settings',
+    name: 'service-config',
+    services,
+    sessions,
+    saved_at: new Date().toISOString()
+  }).catch(() => {
+    // ignore remote save failures; local storage still keeps state
+  });
+}
+
+function applyRemoteConfig(records) {
+  const cfg = [...records]
+    .filter(r => r.type === 'settings' && r.name === 'service-config' && r.saved_at)
+    .sort((a, b) => {
+      const aTime = new Date(a.saved_at || 0).getTime();
+      const bTime = new Date(b.saved_at || 0).getTime();
+      return bTime - aTime;
+    })[0];
+
+  if (!cfg) return;
+  const remoteSavedAt = cfg.saved_at ? new Date(cfg.saved_at).getTime() : 0;
+  const localSavedAtTime = localSavedAt ? new Date(localSavedAt).getTime() : 0;
+  if (localSavedAtTime && remoteSavedAt <= localSavedAtTime) return;
+
+  const remoteServices = normalizeServicesList(cfg.services);
+  const remoteSessions = isValidSessionsObject(cfg.sessions) ? cfg.sessions : null;
+  const hasRemoteServices = remoteServices.length > 0;
+  const hasRemoteSessions = remoteSessions !== null;
+
+  if (!hasRemoteServices && !hasRemoteSessions) {
+    if (services.length) return;
+    services = [...DEFAULT_SERVICES];
+  }
+
+  applyingRemoteConfig = true;
+  if (hasRemoteServices) services = remoteServices;
+  if (hasRemoteSessions) sessions = remoteSessions;
+  if (!services.length) services = [...DEFAULT_SERVICES];
+  saveLocal();
+  renderGrid();
+  applyingRemoteConfig = false;
+}
+
+function saveLocal() {
+  localStorage.setItem(STORAGE_KEYS.services, JSON.stringify(services));
+  localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
+  localSavedAt = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEYS.savedAt, localSavedAt);
+  if (!applyingRemoteConfig) saveRemoteConfig();
+}
+
+function saveHistoryLocal() {
+  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(historyRecords));
+}
+
+function resetDefault() {
+  services = [...DEFAULT_SERVICES];
+  sessions = {};
+  saveLocal();
+  renderGrid();
+}
+
+loadLocal();
 
 // ---- ELEMENT SDK ----
 const defaultConfig = {
@@ -172,18 +296,7 @@ window.elementSdk.init({
   ])
 });
 
-// ---- DATA SDK ----
-const dataHandler = {
-  onDataChanged(data) {
-    historyRecords = data.filter(d => d.status === 'completed');
-    renderHistory();
-    renderStats();
-  }
-};
-(async () => {
-  const r = await window.dataSdk.init(dataHandler);
-  if (!r.isOk) console.error('Data SDK init failed');
-})();
+
 
 // ---- HELPERS ----
 function formatMoney(n) {
@@ -194,10 +307,6 @@ function formatTime(date) {
 }
 function calcCost(minutes) {
   return (minutes / 60) * RATE;
-}
-function saveLocal() {
-  localStorage.setItem('services', JSON.stringify(services));
-  localStorage.setItem('sessions', JSON.stringify(sessions));
 }
 
 // ---- TABS ----
@@ -360,11 +469,8 @@ function openEndModal(name) {
 }
 function closeEndModal() { document.getElementById('endModal').classList.add('hidden'); endingService = null; }
 
-async function confirmEnd() {
+function confirmEnd() {
   if (!endingService) return;
-  const btn = document.getElementById('endConfirmBtn');
-  btn.disabled = true;
-  btn.textContent = 'Đang lưu...';
 
   const name = endingService;
   const start = new Date(sessions[name]);
@@ -373,35 +479,37 @@ async function confirmEnd() {
   const cost = Math.round(calcCost(mins));
 
   if (historyRecords.length >= 999) {
+    const btn = document.getElementById('endConfirmBtn');
     btn.textContent = 'Đã đầy dữ liệu!';
     setTimeout(() => { btn.textContent = 'Xác nhận'; btn.disabled = false; }, 2000);
     return;
   }
 
-  // Cập nhật ngay giao diện và trạng thái nội bộ trước,
-  // rồi lưu dữ liệu lịch sử ở background để phần kết thúc không bị chậm.
+  // Xóa session đang chạy
   delete sessions[name];
   saveLocal();
   stopTimerIfNeeded();
   closeEndModal();
   renderGrid();
 
-  const result = await window.dataSdk.create({
-    type: 'session',
+  // Lưu vào lịch sử local
+  const record = {
     name,
     start_time: start.toISOString(),
     end_time: end.toISOString(),
     duration_minutes: mins,
     total_cost: cost,
     status: 'completed',
-    date: start.toISOString().slice(0, 10)
-  });
+    date: start.toISOString().slice(0, 10),
+    __backendId: 'local_' + Date.now()
+  };
 
-  if (!result.isOk) {
-    btn.textContent = 'Lỗi! Thử lại';
-    btn.disabled = false;
-    // Nếu cần, có thể cân nhắc thêm cơ chế retry hoặc thông báo lỗi riêng.
-  }
+  historyRecords.push(record);
+  saveHistoryLocal();
+
+  // Cập nhật UI
+  renderHistory();
+  renderStats();
 }
 
 // ---- HISTORY ----
@@ -457,6 +565,8 @@ function renderStats() {
 
 // ---- INIT ----
 renderGrid();
+renderHistory();
+renderStats();
 if (Object.keys(sessions).length) startTimer();
 </script>
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f4f106bd566fd3a',t:'MTc3NzY0MTQyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
