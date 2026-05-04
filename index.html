@@ -300,7 +300,8 @@ window.elementSdk.init({
 
 // ---- HELPERS ----
 function formatMoney(n) {
-  return Math.round(n).toLocaleString('vi-VN') + 'đ';
+  const rounded = Math.ceil(n / 1000) * 1000;
+  return rounded.toLocaleString('vi-VN') + ' đ';
 }
 function formatTime(date) {
   return date.getHours().toString().padStart(2,'0') + ':' + date.getMinutes().toString().padStart(2,'0');
@@ -391,11 +392,19 @@ function updateRunning() {
     if (!sessions[name]) return;
     const card = grid.querySelector(`[data-idx="${i}"]`);
     if (!card) return;
-    const elapsed = (now - new Date(sessions[name]).getTime()) / 60000;
-    const mins = Math.floor(elapsed);
-    const secs = Math.floor((elapsed - mins) * 60);
-    card.querySelector('.svc-time').textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
-    card.querySelector('.svc-cost').textContent = formatMoney(calcCost(elapsed));
+    const totalSeconds = Math.floor((now - new Date(sessions[name]).getTime()) / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    let timeText;
+    if (hours > 0) {
+      timeText = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    } else {
+      timeText = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    }
+    card.querySelector('.svc-time').textContent = timeText;
+    card.querySelector('.svc-cost').textContent =
+      Math.floor(calcCost(totalSeconds / 60)).toLocaleString('vi-VN') + ' đ';
   });
 }
 
@@ -476,7 +485,8 @@ function confirmEnd() {
   const start = new Date(sessions[name]);
   const end = new Date();
   const mins = (end - start) / 60000;
-  const cost = Math.round(calcCost(mins));
+  const rawCost = calcCost(mins);
+  const cost = Math.ceil(rawCost / 1000) * 1000;
 
   if (historyRecords.length >= 999) {
     const btn = document.getElementById('endConfirmBtn');
