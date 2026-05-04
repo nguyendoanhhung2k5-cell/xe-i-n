@@ -475,7 +475,7 @@ function confirmEnd() {
   const name = endingService;
   const start = new Date(sessions[name]);
   const end = new Date();
-  const mins = Math.round((end - start) / 60000);
+  const mins = (end - start) / 60000;
   const cost = Math.round(calcCost(mins));
 
   if (historyRecords.length >= 999) {
